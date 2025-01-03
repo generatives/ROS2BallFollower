@@ -1,4 +1,4 @@
-# ROS2 Ball Follower
+#ROS2 Ball Follower
 
 This repo is a space for me to learn how to use ROS2. I am attempting to build something similar to the ball following robot I build here https://github.com/generatives/DistBot although for now I am expecting everything to stay in simulation.
 
