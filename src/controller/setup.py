@@ -5,7 +5,6 @@ from setuptools import setup
 
 package_xml = ET.parse('package.xml').getroot()
 package_name = package_xml.find('name').text
-data = Path('share') / package_name
 setup(
     name=package_name,
     version=package_xml.find('version').text,
@@ -14,15 +13,14 @@ setup(
     maintainer_email=package_xml.find('maintainer').attrib['email'],
     license=package_xml.find('license').text,
     data_files=[
-        (str(data), ['package.xml']),
-        (str(data / 'launch'), ['launch/main_launch.py']),
+        (str(Path('share') / package_name), ['package.xml']),
         ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
     entry_points={
         'console_scripts': [
-            'nicegui_node = gui.node:main',
+            'controller_node = controller.node:main',
         ],
     },
 )

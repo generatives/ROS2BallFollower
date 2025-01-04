@@ -14,6 +14,7 @@ setup(
     license=package_xml.find('license').text,
     data_files=[
         (str(Path('share') / package_name), ['package.xml']),
+        ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
     ],
     install_requires=['setuptools'],
     zip_safe=True,

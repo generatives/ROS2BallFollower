@@ -3,7 +3,7 @@ import threading
 from pathlib import Path
 
 import rclpy
-from geometry_msgs.msg import Pose, Twist
+from geometry_msgs.msg import Pose, Twist, Point
 from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 
@@ -16,6 +16,7 @@ class NiceGuiNode(Node):
         super().__init__('nicegui')
         self.cmd_vel_publisher = self.create_publisher(Twist, 'cmd_vel', 1)
         self.subscription = self.create_subscription(Pose, 'pose', self.handle_pose, 1)
+        self.sensor_subscription = self.create_subscription(Point, 'distance_sensor', self.handle_sensor_hit, 1)
 
         with Client.auto_index_client:
             with ui.row().classes('items-stretch'):
@@ -40,6 +41,10 @@ class NiceGuiNode(Node):
                         with scene.group() as self.robot_3d:
                             prism = [[-0.5, -0.5], [0.5, -0.5], [0.75, 0], [0.5, 0.5], [-0.5, 0.5]]
                             self.robot_object = scene.extrusion(prism, 0.4).material('#4488ff', 0.5)
+                        with scene.group() as self.sensor_hit:
+                            prism = [[-0.05, -0.05], [0.05, -0.05], [0.05, 0.05], [-0.05, 0.05]]
+                            self.sensor_hit_object = scene.extrusion(prism, 1).material('#ff0000', 0.5)
+                        self.sensor_hit.visible(False)
 
     def send_speed(self, x: float, y: float) -> None:
         msg = Twist()
@@ -53,6 +58,16 @@ class NiceGuiNode(Node):
         self.position.text = f'x: {msg.position.x:.2f}, y: {msg.position.y:.2f}'
         self.robot_3d.move(msg.position.x, msg.position.y)
         self.robot_3d.rotate(0, 0, 2 * math.atan2(msg.orientation.z, msg.orientation.w))
+
+    def handle_sensor_hit(self, msg: Point) -> None:
+        robot_x, robot_y = self.robot_3d.x, self.robot_3d.y
+        sensor_x, sensor_y = msg.x, msg.y
+        distance = math.sqrt((robot_x - sensor_x) ** 2 + (robot_y - sensor_y) ** 2)
+        if distance < 10:
+            self.sensor_hit.move(msg.x, msg.y)
+            self.sensor_hit.visible(True)
+        else:
+            self.sensor_hit.visible(False)
 
 
 def main() -> None:
