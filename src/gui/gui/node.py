@@ -3,7 +3,7 @@ import threading
 from pathlib import Path
 
 import rclpy
-from geometry_msgs.msg import Pose, Twist, Point
+from geometry_msgs.msg import Pose, Twist, Point, Quaternion
 from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 
@@ -17,6 +17,8 @@ class NiceGuiNode(Node):
         self.cmd_vel_publisher = self.create_publisher(Twist, 'cmd_vel', 1)
         self.subscription = self.create_subscription(Pose, 'pose', self.handle_pose, 1)
         self.sensor_subscription = self.create_subscription(Point, 'distance_sensor', self.handle_sensor_hit, 1)
+        
+        self.cmd_ball_pose_publisher = self.create_publisher(Pose, 'cmd_ball_pose', 1)
 
         with Client.auto_index_client:
             with ui.row().classes('items-stretch'):
@@ -35,9 +37,12 @@ class NiceGuiNode(Node):
                     self.angular = ui.slider(min=-1, max=1, step=0.05, value=0).props(slider_props)
                     ui.label('position').classes('text-xs mb-[-1.4em]')
                     self.position = ui.label('---')
+                    self.orientation = ui.label('---')
+                    self.yaw = ui.label('---')
                 with ui.card().classes('w-96 h-96 items-center'):
                     ui.label('Visualization').classes('text-2xl')
-                    with ui.scene(350, 300) as scene:
+                    with ui.scene(350, 300, drag_constraints='z=0') as scene:
+                        scene.move_camera(0, 0, 10)
                         with scene.group() as self.robot_3d:
                             prism = [[-0.5, -0.5], [0.5, -0.5], [0.75, 0], [0.5, 0.5], [-0.5, 0.5]]
                             self.robot_object = scene.extrusion(prism, 0.4).material('#4488ff', 0.5)
@@ -45,6 +50,19 @@ class NiceGuiNode(Node):
                             prism = [[-0.05, -0.05], [0.05, -0.05], [0.05, 0.05], [-0.05, 0.05]]
                             self.sensor_hit_object = scene.extrusion(prism, 1).material('#ff0000', 0.5)
                         self.sensor_hit.visible(False)
+                        with scene.group() as self.ball:
+                            self.ball_object = scene.sphere(0.25).material('#ff0000').draggable()
+                        self.ball.move(0, 2, 0)
+                            
+                        scene.on('drag', self.on_drag)
+                            
+    def on_drag(self, e) -> None:
+        if e.args['object_id'] == self.ball.id:
+            ball_pose = Pose(
+                position=Point(x=float(e.args['x']), y=float(e.args['y']), z=0.0),
+                orientation=Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)
+            )
+            self.cmd_ball_pose_publisher.publish(ball_pose)
 
     def send_speed(self, x: float, y: float) -> None:
         msg = Twist()
@@ -56,6 +74,8 @@ class NiceGuiNode(Node):
 
     def handle_pose(self, msg: Pose) -> None:
         self.position.text = f'x: {msg.position.x:.2f}, y: {msg.position.y:.2f}'
+        self.orientation.text = f'z: {msg.orientation.z:.2f}, w: {msg.orientation.w:.2f}'
+        self.yaw.text = f'yaw: {2 * math.atan2(msg.orientation.z, msg.orientation.w):.2f}'
         self.robot_3d.move(msg.position.x, msg.position.y)
         self.robot_3d.rotate(0, 0, 2 * math.atan2(msg.orientation.z, msg.orientation.w))
 

@@ -11,6 +11,7 @@ import time
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Pose, Twist, Point
+from std_msgs.msg import Float32
 
 class RobotState(Enum):
     PICKING_WANDER_HEADING = 1
@@ -54,6 +55,8 @@ class Robot(Node):
         self.cmd_vel_publisher = self.create_publisher(Twist, 'cmd_vel', 1)
         self.motor_controller = MotorController(self.cmd_vel_publisher)
         self.timer = self.create_timer(self.INTERVAL, self.step)
+        
+        self.ball_heading_subscription = self.create_subscription(Float32, 'ball_heading', self.handle_ball_heading, 1)
 
         #self.node = Node(ctx, headers={"Role": "Robot"}, groups=["BallPositionFeed"])
         #self.node.whisper_recieved += self.whisper_recieved
@@ -61,9 +64,8 @@ class Robot(Node):
 
         self.state = RobotState.PICKING_WANDER_HEADING
         self.wander_heading = None
-        self.no_ball_timestamp = None
+        self.last_ball_heading_time = None
         self.ball_relative_heading = None
-        self.ball_last_relative_heading = None
 
         self.state_lookup = {}
         self.state_lookup[RobotState.PICKING_WANDER_HEADING] = self._picking_wander_heading
@@ -80,10 +82,9 @@ class Robot(Node):
     def handle_pose(self, msg: Pose) -> None:
         self.pose = msg
 
-    def whisper_recieved(self, peer, cmds):
-        print(f"Rec position: {cmds}")
-        msg = cmds.pop(0).decode("UTF-8")
-        self.ball_relative_heading = None if msg == 'None' else float(msg)
+    def handle_ball_heading(self, msg: Float32) -> None:
+        self.last_ball_heading_time = time.time()
+        self.ball_relative_heading = float(msg.data)
 
     def _set_state(self, state):
         print(f"Transition from {self.state} to {state}")
@@ -138,31 +139,16 @@ class Robot(Node):
             self.motor_controller.step(current_heading, current_heading, 0)
             return
 
-        if self.ball_relative_heading is None:
-            if self.no_ball_timestamp is None:
-                print("Lost ball")
-                self.no_ball_timestamp = time.time()
-
-            time_since = time.time() - self.no_ball_timestamp
+        if self.ball_relative_heading is None or (self.last_ball_heading_time and (time.time() - self.last_ball_heading_time) > 2):
+            self._set_state(RobotState.PICKING_WANDER_HEADING)
+            self.wander_heading = None
             
-            if time_since > 10:
-                self._set_state(RobotState.PICKING_WANDER_HEADING)
-                self.wander_heading = None
-                self.no_ball_timestamp = None
-                self.ball_last_relative_heading = None
-                self.motor_controller.step(current_heading, current_heading, 0)
-            
-            if self.ball_last_relative_heading is not None:
-                relative_heading = self.ball_last_relative_heading
-                follow_speed = speed if time_since <= 2 else 0
+            relative_heading = 0
+            follow_speed = 0
         else:
-            if self.no_ball_timestamp is not None:
-                self.no_ball_timestamp = None
-                print("Found ball")
-                
             relative_heading = self.ball_relative_heading
             follow_speed = speed
-
+            
         goal_heading = current_heading + relative_heading
         if goal_heading > 2 * math.pi:
             goal_heading = goal_heading - 2 * math.pi
@@ -178,6 +164,10 @@ class Robot(Node):
             self.motor_controller.step(current_heading, current_heading, 0)
 
     def step(self):
+        if self.last_ball_heading_time and (time.time() - self.last_ball_heading_time) > 0.5:
+            self.last_ball_heading_time = None
+            self.ball_relative_heading = None
+            
         current_heading = (2 * math.atan2(self.pose.orientation.z, self.pose.orientation.w)) if self.pose is not None else 0
         self.state_lookup[self.state](current_heading)
         
