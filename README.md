@@ -7,3 +7,6 @@ This project is being developed on a Mac, with VS Code, inside a Dev Container. 
 I didn't want to figure out how to run turtlesim inside a Linux container on OSX so I am using the NiceGUI ROS2 examples here https://github.com/zauberzeug/nicegui/tree/main/examples/ros2 as my simulator and GUI.
 
 The "requirements.txt" file list requirements that should be installed in your venv. You should also modify "setup.cfg" file in the gui package to point to your venv.
+
+Here is a video of the robot following the ball in simulation
+[![Following](https://github.com/user-attachments/assets/bd17b257-c46d-4ac3-b131-5e7c6ea93e30)](https://youtu.be/fqrbo736LvM "Following")
