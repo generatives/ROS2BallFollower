@@ -9,6 +9,20 @@ from rclpy.node import Node
 
 from nicegui import Client, app, ui, ui_run
 
+map_def_arr = [
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+]
+wall_size = 1
+field_x_offset = -len(map_def_arr[0]) * wall_size / 2
+field_y_offset = -len(map_def_arr) * wall_size / 2
 
 class NiceGuiNode(Node):
 
@@ -43,12 +57,18 @@ class NiceGuiNode(Node):
                     ui.label('Visualization').classes('text-2xl')
                     with ui.scene(350, 300, drag_constraints='z=0') as scene:
                         scene.move_camera(0, 0, 10)
+                        with scene.group() as self.field:
+                            for y, x_list in enumerate(map_def_arr):
+                                for x, cell in enumerate(x_list):
+                                    if cell:
+                                        square = [[-0.5, -0.5], [0.5, -0.5], [0.5, 0.5], [-0.5, 0.5]]
+                                        scene.extrusion(square, 1).move(x * wall_size + field_x_offset, y * wall_size + field_y_offset).material('#4488ff')
                         with scene.group() as self.robot_3d:
                             prism = [[-0.5, -0.5], [0.5, -0.5], [0.75, 0], [0.5, 0.5], [-0.5, 0.5]]
                             self.robot_object = scene.extrusion(prism, 0.4).material('#4488ff', 0.5)
                         with scene.group() as self.sensor_hit:
                             prism = [[-0.05, -0.05], [0.05, -0.05], [0.05, 0.05], [-0.05, 0.05]]
-                            self.sensor_hit_object = scene.extrusion(prism, 1).material('#ff0000', 0.5)
+                            self.sensor_hit_object = scene.extrusion(prism, 1.5).material('#ff0000', 0.5)
                         self.sensor_hit.visible(False)
                         with scene.group() as self.ball:
                             self.ball_object = scene.sphere(0.25).material('#ff0000').draggable()

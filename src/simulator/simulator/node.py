@@ -1,9 +1,8 @@
 import math
 
 import rclpy
-from geometry_msgs.msg import Pose, Twist, Point, PoseArray
+from geometry_msgs.msg import Pose, Twist, Point
 from std_msgs.msg import Float32
-from nav_msgs.msg import GridCells
 from rclpy.node import Node
 import numpy as np
 #from messages.srv import GetMap
@@ -40,7 +39,6 @@ class Simulator(Node):
         self.ball_pose_publisher = self.create_publisher(Pose, 'ball_pose', 1)
         self.ball_heading_publisher = self.create_publisher(Float32, 'ball_heading', 1)
         self.cmd_ball_pose_subscriber = self.create_subscription(Pose, 'cmd_ball_pose', self.handle_cmd_ball_pose, 1)
-        #self.get_map_service = self.create_service(GetMap, 'add_two_ints', self.get_map_callback)
         self.ball_pose = Pose()
         self.pose = Pose()
         self.linear_velocity = 0.0
@@ -53,15 +51,6 @@ class Simulator(Node):
     def handle_cmd_ball_pose(self, msg: Pose) -> None:
         self.ball_pose = msg
         self.ball_pose_publisher.publish(msg)
-        
-    #def get_map_callback(self, request, response: GridCells):
-    #    response.cell_width = wall_size
-    #    response.cell_height = wall_size
-    #    for y, x_list in enumerate(map_def_arr):
-    #        for x, cell in enumerate(x_list):
-    #            if cell:
-    #                response.cells.append(Point(x=x * wall_size, y=y * wall_size, z=0))
-    #    return response
 
     def handle_velocity_command(self, msg: Twist) -> None:
         self.linear_velocity = msg.linear.x
@@ -80,7 +69,8 @@ class Simulator(Node):
         yaw = 2 * math.atan2(self.pose.orientation.z, self.pose.orientation.w)
         relative_yaw = (ball_yaw - yaw) % (2 * math.pi)
         
-        print(relative_yaw)
+        if relative_yaw > math.pi:
+            relative_yaw -= 2 * math.pi
         
         if abs(relative_yaw) < fov:
             self.ball_heading_publisher.publish(Float32(data=relative_yaw))

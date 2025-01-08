@@ -92,9 +92,12 @@ class Robot(Node):
 
     def _obstructed(self):
         return self.sensor_distance < wall_clearance
+    
+    def _has_recent_ball_heading(self):
+        return self.last_ball_heading_time and (time.time() - self.last_ball_heading_time) < 0.5
 
     def _picking_wander_heading(self, current_heading):
-        if self.ball_relative_heading is not None:
+        if self._has_recent_ball_heading():
             self._set_state(RobotState.FOLLOWING_BALL)
             self.wander_heading = None
             return
@@ -118,7 +121,7 @@ class Robot(Node):
                 self._set_state(RobotState.FOLLOWING_WANDER_HEADING)
 
     def _following_wander_heading(self, current_heading):
-        if self.ball_relative_heading is not None:
+        if self._has_recent_ball_heading():
             self._set_state(RobotState.FOLLOWING_BALL)
             self.wander_heading = None
             return
@@ -138,8 +141,10 @@ class Robot(Node):
             self.wander_heading = None
             self.motor_controller.step(current_heading, current_heading, 0)
             return
-
-        if self.ball_relative_heading is None or (self.last_ball_heading_time and (time.time() - self.last_ball_heading_time) > 2):
+        
+        time_since_last_read = (time.time() - self.last_ball_heading_time)  if self.last_ball_heading_time else math.inf
+        
+        if not self.ball_relative_heading or not self.last_ball_heading_time or time_since_last_read > 2:
             self._set_state(RobotState.PICKING_WANDER_HEADING)
             self.wander_heading = None
             
@@ -164,10 +169,6 @@ class Robot(Node):
             self.motor_controller.step(current_heading, current_heading, 0)
 
     def step(self):
-        if self.last_ball_heading_time and (time.time() - self.last_ball_heading_time) > 0.5:
-            self.last_ball_heading_time = None
-            self.ball_relative_heading = None
-            
         current_heading = (2 * math.atan2(self.pose.orientation.z, self.pose.orientation.w)) if self.pose is not None else 0
         self.state_lookup[self.state](current_heading)
         
